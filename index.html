@@ -84,7 +84,7 @@ header>.toolbar{grid-column:2;grid-row:1 / span 2}
 /* v2.7 — возврат к интерфейсу со списками: отдельные мини-картинки материалов отключены. */
 .gallery-shell,.material-gallery,.material-swatch,.gallery-nav{display:none!important}
 </style>
-<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.3</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
+<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.4</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
 <main><div class="summary" id="summary"></div><div id="globalWarning"></div><div class="grid" id="cards"></div><div class="toolbar"><button class="primary" onclick="rank(false)">Самый дешёвый сценарий</button><button onclick="rank(true)">Самый дорогой сценарий</button><span class="muted">Среди полностью оценённых составов; испытания проверяются отдельно.</span></div><div class="toolbar"><button onclick="saveJSON()">Сохранить расчёт JSON</button><button onclick="document.getElementById('load').click()">Загрузить расчёт</button><input id="load" type="file" accept=".json" hidden><button onclick="csv()">Таблица для Excel (CSV)</button><button onclick="window.print()">Печать / PDF</button><button class="reset-compositions" onclick="resetCompositions()">↺ Сбросить составы к базе</button><button onclick="resetAll()">Сбросить всё</button><span id="saved" class="muted"></span></div><footer>Источники: данные калькулятора «Водяная»; цены и протоколы, указанные в карточках. СИБИТ D600 240 мм: официальный сайт sibyt.ru, 24.09.2026. НДС и доставка не уточнены. Расчёт не является заключением о пригодности конструкции.</footer></main>
 <dialog id="modal"><button class="close" onclick="document.getElementById('modal').close()">Закрыть</button><h2 id="mt"></h2><div id="mb"></div></dialog>
 <script>/*!
@@ -699,7 +699,7 @@ async function exportRatesExcel(){
 // v3.2 — актуализация расценок 02.10.2026.
 // Источник: «Расценки _ актуализированы 02.10.2026 ( ЯБ19.2, 32 , Базилик 3)»
 // через выгрузку wall_calculator_rates (2).xlsx.
-const RATE_SYNC_20261002='2026-10-02-v1';
+const RATE_SYNC_20261002='2026-10-02-v2';
 const CURRENT_MATERIAL_RATES_20261002={
  brick:{price:20,source:'Пользователь; формат 1 НФ принят предварительно'},
  sil:{price:15,source:'Пользователь; с доставкой; формат 1 НФ уточнить'},
@@ -787,10 +787,42 @@ for(const state of [defaultState,S]){
   }
 }
 
+
+// v3.4 — прозрачная проверка экономики по каждой позиции.
+// Формулы:
+// База дома = Σ(База_i × Объём_i × Этажи)
+// Сценарий дома = Σ(Выбранный_i × Объём_i × Этажи)
+// Экономия дома = База дома − Сценарий дома
+function groupEconomy(i){
+ const g=S.groups[i],b=cost(i,'base'),a=cost(i);
+ const dPerM2=b.total-a.total;
+ const dFloor=dPerM2*g.area;
+ const dHouse=dFloor*S.floors;
+ return {base:b,alt:a,dPerM2,dFloor,dHouse};
+}
+const renderV34Base=render;
+render=function(){
+ renderV34Base();
+ document.querySelectorAll('#cards .card').forEach((card,i)=>{
+   const e=groupEconomy(i);
+   const box=document.createElement('div');
+   box.className=e.alt.missing.length?'warn':'note';
+   box.style.marginTop='10px';
+   if(e.alt.missing.length){
+     box.innerHTML='<b>Экономика позиции:</b> расчёт не завершён';
+   }else{
+     const sign=e.dHouse>=0?'Экономия':'Удорожание';
+     box.innerHTML='<b>'+sign+' по позиции:</b> '+fmt(Math.abs(e.dHouse))+' ₽ / дом'
+       +'<br><small>Δ '+fmt(e.dPerM2,2)+' ₽/м² × '+fmt(S.groups[i].area,2)+' м²/этаж × '+S.floors+' этажей</small>';
+   }
+   card.appendChild(box);
+ });
+};
+
 // Обновляем пояснение над карточками без изменения интерфейса.
 const metaSyncNote=document.createElement('div');
 metaSyncNote.className='note';metaSyncNote.style.marginBottom='16px';
-metaSyncNote.innerHTML='<b>Расценки актуализированы 02.10.2026.</b> База МЕТАСЕБЕС и альтернативы синхронизированы; итог базы по объёмам Дома 32 и 25 этажам — 84 576 334 ₽. Силикатный кирпич — 15 ₽/шт., СППо 80 — 850 ₽/м².';
+metaSyncNote.innerHTML='<b>Расценки актуализированы 02.10.2026.</b> Экономия считается как БАЗА − выбранный сценарий по каждой группе × её объём × этажность. База Дома 32 при 25 этажах — 84 576 334 ₽. Для СППо 80: материал 850 ₽/м² + клей 32,40 ₽/м² + работы 900 ₽/м² = 1 782,40 ₽/м².';
 const gw=document.getElementById('globalWarning');if(gw?.parentNode)gw.parentNode.insertBefore(metaSyncNote,gw);
 
 render();
