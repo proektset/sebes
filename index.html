@@ -84,7 +84,7 @@ header>.toolbar{grid-column:2;grid-row:1 / span 2}
 /* v2.7 — возврат к интерфейсу со списками: отдельные мини-картинки материалов отключены. */
 .gallery-shell,.material-gallery,.material-swatch,.gallery-nav{display:none!important}
 </style>
-<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.1</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
+<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.2</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
 <main><div class="summary" id="summary"></div><div id="globalWarning"></div><div class="grid" id="cards"></div><div class="toolbar"><button class="primary" onclick="rank(false)">Самый дешёвый сценарий</button><button onclick="rank(true)">Самый дорогой сценарий</button><span class="muted">Среди полностью оценённых составов; испытания проверяются отдельно.</span></div><div class="toolbar"><button onclick="saveJSON()">Сохранить расчёт JSON</button><button onclick="document.getElementById('load').click()">Загрузить расчёт</button><input id="load" type="file" accept=".json" hidden><button onclick="csv()">Таблица для Excel (CSV)</button><button onclick="window.print()">Печать / PDF</button><button class="reset-compositions" onclick="resetCompositions()">↺ Сбросить составы к базе</button><button onclick="resetAll()">Сбросить всё</button><span id="saved" class="muted"></span></div><footer>Источники: данные калькулятора «Водяная»; цены и протоколы, указанные в карточках. СИБИТ D600 240 мм: официальный сайт sibyt.ru, 24.09.2026. НДС и доставка не уточнены. Расчёт не является заключением о пригодности конструкции.</footer></main>
 <dialog id="modal"><button class="close" onclick="document.getElementById('modal').close()">Закрыть</button><h2 id="mt"></h2><div id="mb"></div></dialog>
 <script>/*!
@@ -695,10 +695,89 @@ async function exportRatesExcel(){
  }catch(e){alert('Excel не выгружен: '+(e?.message||e));}
 }
 
+
+// v3.2 — актуализация расценок 02.10.2026.
+// Источник: «Расценки _ актуализированы 02.10.2026 ( ЯБ19.2, 32 , Базилик 3)»
+// через выгрузку wall_calculator_rates (2).xlsx.
+const RATE_SYNC_20261002='2026-10-02-v1';
+const CURRENT_MATERIAL_RATES_20261002={
+ brick:{price:20,source:'Пользователь; формат 1 НФ принят предварительно'},
+ sil:{price:15,source:'Пользователь; с доставкой; формат 1 НФ уточнить'},
+ k120:{price:147,source:'Приложенный прайс, доставка в Новосибирск'},
+ k200:{price:230,source:'Приложенный прайс, доставка в Новосибирск'},
+ k250:{price:215,source:'Приложенный прайс, доставка в Новосибирск'},
+ magis:{price:95,source:'Цена аналога ПСК Гермес, 01.01.2026, без доставки; НЕ цена МАГИС'},
+ sb:{price:110,source:'Пользователь; с доставкой'},
+ sp:{price:850,source:'Пользователь; с доставкой'},
+ pgp:{price:989.52,source:'Укрупнённая материальная расценка Водяной, состав не раскрыт'},
+ mortar:{price:4890,source:'М100 Пк2, НЗСК; летняя цена от 100 м³, условия доставки уточнить; найдено 24.09.2026; доставка отдельно/не подтверждена'},
+ glue:{price:16.2,source:'GM-25: 405 ₽ / 25 кг = 16,20 ₽/кг. Ценовой ориентир; пригодность для СППо проверить; найдено 24.09.2026; доставка отдельно/не подтверждена'},
+ plaster:{price:192.66666666666669,source:'Ротбанд 680 ₽/30 кг × 8,5 кг/м² при 10 мм = 192,67 ₽/м²; найдено 24.09.2026; доставка отдельно/не подтверждена'},
+ putty:{price:64,source:'Ротбанд Финиш 800 ₽/25 кг × 2 кг/м² при 2 мм = 64 ₽/м²; найдено 24.09.2026; доставка отдельно/не подтверждена'},
+ wool:{price:3891.666666666667,source:'АкустиКНАУФ 50 мм: 2335 ₽/0,6 м³ = 3891,67 ₽/м³. Для 40 мм только ценовой аналог; не сжимать 50 мм автоматически; найдено 24.09.2026; доставка отдельно/не подтверждена'},
+ sibit240:{price:8290,source:'Официальный СИБИТ, 24.09.2026: D600/B2.5, 625×240×250 мм, 8 290 ₽/м³; поддоны и доставка отдельно'},
+ sibit250:{price:8290,source:'Официальный СИБИТ, 24.09.2026: D600/B2.5, 625×240×250 мм, 8 290 ₽/м³; поддоны и доставка отдельно; изделие толщиной 250 мм не подтверждено'},
+ mesh:{price:87,source:'Заполнить по проекту'},
+ ties:{price:87,source:'Заполнить по проекту'},
+ joint:{price:87,source:'Заполнить по проекту'},
+ sealant:{price:87,source:'Заполнить по проекту'},
+ primer:{price:87,source:'Заполнить по проекту'},
+ waterproof:{price:87,source:'Заполнить по проекту'},
+ facade:{price:87,source:'Заполнить по проекту'},
+ reinforcing:{price:87,source:'Заполнить по проекту'},
+ fasteners:{price:87,source:'Заполнить по проекту'},
+ insulation:{price:87,source:'Заполнить по проекту'},
+ delivery:{price:87,source:'Заполнить по поставщику; не учесть повторно в прочих затратах'},
+ rub:{price:87,source:'Расход и цена уточняются; сплошная шпаклёвка 2 мм не применяется'}
+};
+const CURRENT_WORK_RATES_20261002={
+ brick250:{work:1500,finishWork:1000,other:0},
+ brick120:{work:1400,finishWork:1000,other:0},
+ sil120:{work:1400,finishWork:1000,other:0},
+ sil250:{work:1500,finishWork:1000,other:0},
+ k120:{work:900,finishWork:1000,other:0},
+ k200:{work:1200,finishWork:1000,other:0},
+ k250:{work:1500,finishWork:1000,other:0},
+ magis:{work:1200,finishWork:0,other:0},
+ sb:{work:1500,finishWork:500,other:0},
+ pgp:{work:1393.44,finishWork:0,other:0},
+ sp:{work:900,finishWork:0,other:0},
+ spf:{work:900,finishWork:0,other:0},
+ compound:{work:2300,finishWork:500,other:0},
+ compoundw:{work:2400,finishWork:500,other:0},
+ sibit240:{work:1500,finishWork:500,other:0},
+ sibit250:{work:1500,finishWork:500,other:0}
+};
+Object.assign(META_SEBES_BASE_RATES[0].brick250,{material:2195.07,work:2387.32,source:'МЕТАСЕБЕС 2.3 · наружные стены · актуализировано 02.10.2026'});
+Object.assign(META_SEBES_BASE_RATES[1].brick250,{material:1942.63,work:2108.63,source:'МЕТАСЕБЕС 2.3 · межквартирные стены · актуализировано 02.10.2026'});
+Object.assign(META_SEBES_BASE_RATES[2].pgp,{material:989.52,work:1393.44,source:'МЕТАСЕБЕС 2.3 · ПГП · актуализировано 02.10.2026'});
+Object.assign(META_SEBES_BASE_RATES[3].brick120,{material:990.28,work:2490.14,source:'МЕТАСЕБЕС 2.3 · кирпичные перегородки · актуализировано 02.10.2026'});
+const baseRates20261002=[
+ {material:2195.07,work:2387.32},
+ {material:1942.63,work:2108.63},
+ {material:989.52,work:1393.44},
+ {material:990.28,work:2490.14}
+];
+for(const state of [defaultState,S]){
+ if(!state?.mats||!state?.configs)continue;
+ for(const [id,r] of Object.entries(CURRENT_MATERIAL_RATES_20261002)){
+   if(!state.mats[id] && matDefaults[id]) state.mats[id]=clone(matDefaults[id]);
+   if(state.mats[id]) Object.assign(state.mats[id],r);
+   if(matDefaults[id]) Object.assign(matDefaults[id],r);
+ }
+ if(state.rateSync20261002!==RATE_SYNC_20261002){
+   for(const [id,r] of Object.entries(CURRENT_WORK_RATES_20261002)){
+     if(state.configs[id]) Object.assign(state.configs[id],r);
+   }
+   state.groups?.forEach((g,i)=>{if(baseRates20261002[i])Object.assign(g,baseRates20261002[i]);});
+   state.rateSync20261002=RATE_SYNC_20261002;
+ }
+}
+
 // Обновляем пояснение над карточками без изменения интерфейса.
 const metaSyncNote=document.createElement('div');
 metaSyncNote.className='note';metaSyncNote.style.marginBottom='16px';
-metaSyncNote.innerHTML='<b>База синхронизирована с МЕТАСЕБЕС 2.3.</b> Материалы и работы показаны отдельно; итог базы при исходных площадях и 25 этажах — 67 728 851 ₽. Альтернативы считаются детально.';
+metaSyncNote.innerHTML='<b>Расценки актуализированы 02.10.2026.</b> База МЕТАСЕБЕС и альтернативы синхронизированы; итог базы при исходных площадях и 25 этажах — 77 810 551 ₽. Силикатный кирпич — 15 ₽/шт., СППо 80 — 850 ₽/м².';
 const gw=document.getElementById('globalWarning');if(gw?.parentNode)gw.parentNode.insertBefore(metaSyncNote,gw);
 
 render();
