@@ -84,7 +84,7 @@ header>.toolbar{grid-column:2;grid-row:1 / span 2}
 /* v2.7 — возврат к интерфейсу со списками: отдельные мини-картинки материалов отключены. */
 .gallery-shell,.material-gallery,.material-swatch,.gallery-nav{display:none!important}
 </style>
-<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.4</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
+<header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.5</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
 <main><div class="summary" id="summary"></div><div id="globalWarning"></div><div class="grid" id="cards"></div><div class="toolbar"><button class="primary" onclick="rank(false)">Самый дешёвый сценарий</button><button onclick="rank(true)">Самый дорогой сценарий</button><span class="muted">Среди полностью оценённых составов; испытания проверяются отдельно.</span></div><div class="toolbar"><button onclick="saveJSON()">Сохранить расчёт JSON</button><button onclick="document.getElementById('load').click()">Загрузить расчёт</button><input id="load" type="file" accept=".json" hidden><button onclick="csv()">Таблица для Excel (CSV)</button><button onclick="window.print()">Печать / PDF</button><button class="reset-compositions" onclick="resetCompositions()">↺ Сбросить составы к базе</button><button onclick="resetAll()">Сбросить всё</button><span id="saved" class="muted"></span></div><footer>Источники: данные калькулятора «Водяная»; цены и протоколы, указанные в карточках. СИБИТ D600 240 мм: официальный сайт sibyt.ru, 24.09.2026. НДС и доставка не уточнены. Расчёт не является заключением о пригодности конструкции.</footer></main>
 <dialog id="modal"><button class="close" onclick="document.getElementById('modal').close()">Закрыть</button><h2 id="mt"></h2><div id="mb"></div></dialog>
 <script>/*!
@@ -819,10 +819,38 @@ render=function(){
  });
 };
 
+
+// v3.5 — единая методика сравнения всех стен.
+// И база, и альтернатива считаются одинаково:
+// материалы по физическим расходам + основные работы + отделка/перетирка + прочие затраты.
+function detailedWallCost(i,id){
+ const g=S.groups[i],r=recipes[id],cfg=S.configs[id],missing=[];
+ if(!r||!cfg)return {m:0,w:0,total:0,missing:['Нет состава'],t:0};
+ let m=0;
+ for(const [key,q] of cfg.parts){
+   const mat=S.mats[key];
+   const p=mat?.price;
+   if(q>0 && (p===null || p===undefined)) missing.push(mat?.name||key);
+   else m+=q*(p??0);
+ }
+ m*=1+(cfg.waste??0)/100;
+ for(const key of ['work','finishWork','other']){
+   if(cfg[key]===null || cfg[key]===undefined) missing.push({work:'Основные работы',finishWork:'Отделка / перетирка',other:'Прочие затраты'}[key]);
+ }
+ const w=(cfg.work??0)+(cfg.finishWork??0)+(cfg.other??0);
+ const t=r.layers.reduce((a,l)=>a+l.t,0)+(id===g.base?(g.baseFinish??0):0);
+ return {m,w,total:m+w,missing,t,source:'Единый детальный расчёт v3.5'};
+}
+cost=function(i,id=S.groups[i].chosen){
+ const g=S.groups[i];
+ const actualId=id==='base'?g.base:id;
+ return detailedWallCost(i,actualId);
+};
+
 // Обновляем пояснение над карточками без изменения интерфейса.
 const metaSyncNote=document.createElement('div');
 metaSyncNote.className='note';metaSyncNote.style.marginBottom='16px';
-metaSyncNote.innerHTML='<b>Расценки актуализированы 02.10.2026.</b> Экономия считается как БАЗА − выбранный сценарий по каждой группе × её объём × этажность. База Дома 32 при 25 этажах — 84 576 334 ₽. Для СППо 80: материал 850 ₽/м² + клей 32,40 ₽/м² + работы 900 ₽/м² = 1 782,40 ₽/м².';
+metaSyncNote.innerHTML='<b>Единая методика расчёта v3.5.</b> База и альтернативы теперь считаются одинаково: физический расход материалов × текущая цена + работы + отделка/перетирка + прочие затраты. Поэтому сравнение керамики, силикатного кирпича, ПГП и СППо выполняется на одной базе расчёта.';
 const gw=document.getElementById('globalWarning');if(gw?.parentNode)gw.parentNode.insertBefore(metaSyncNote,gw);
 
 render();
