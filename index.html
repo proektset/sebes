@@ -414,7 +414,7 @@ function applyV25FinishRules(state){
 applyV25FinishRules(defaultState);applyV25FinishRules(S);
 const savedState=(()=>{try{return JSON.parse(localStorage.getItem('walls-v2'))}catch{return null}})();if(savedState){try{validate(savedState);S=savedState}catch{S=clone(defaultState)}}
 applyV25FinishRules(S);
-document.getElementById('globalWarning').insertAdjacentHTML('beforebegin','<div class="note" style="margin-bottom:16px"><b>Водяная: материалы заполнены.</b> База из ведомости сохранена. Альтернативы: цены материалов + предварительные работы. Межквартирная база переключается между кирпичом 250 и составом 120 + 20 + 40 + 80 мм. Для произвольной альтернативы нажмите «Собрать стену по слоям». СИБИТ 250 мм — расчётный, подтверждённый размер у производителя 240 мм. Кирпич и кераблоки в типовых рецептах — штукатурка 20/20 мм; ПГП и СППо — перетирка без сплошной шпаклёвки 2 мм.</div>');
+
 
 
 // v2.7 — интерфейс со списками + полный учёт работ.
