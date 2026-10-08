@@ -85,7 +85,7 @@ header>.toolbar{grid-column:2;grid-row:1 / span 2}
 .gallery-shell,.material-gallery,.material-swatch,.gallery-nav{display:none!important}
 </style>
 <header><small>ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.5</small><h1>Стены: стоимость и эффективность</h1><div class="muted">Водяная · база и альтернативные конструкции · материалы + работы</div><div class="toolbar"><label>Повторяющихся этажей <input id="floors" type="number" min="1" max="200" step="1"></label><button onclick="volumes()">Объёмы</button><button onclick="rates()">Расценки</button><button onclick="catalog()">Материалы и испытания</button></div><button class="instruction-btn" onclick="help()">? Инструкция</button></header>
-<main><div class="summary" id="summary"></div><div id="globalWarning"></div><div class="grid" id="cards"></div><div class="toolbar"><button class="primary" onclick="rank(false)">Самый дешёвый сценарий</button><button onclick="rank(true)">Самый дорогой сценарий</button><span class="muted">Среди полностью оценённых составов; испытания проверяются отдельно.</span></div><div class="toolbar"><button onclick="saveJSON()">Сохранить расчёт JSON</button><button onclick="document.getElementById('load').click()">Загрузить расчёт</button><input id="load" type="file" accept=".json" hidden><button onclick="csv()">Таблица для Excel (CSV)</button><button onclick="window.print()">Печать / PDF</button><button class="reset-compositions" onclick="resetCompositions()">↺ Сбросить составы к базе</button><button onclick="resetAll()">Сбросить всё</button><span id="saved" class="muted"></span></div><footer>Источники: данные калькулятора «Водяная»; цены и протоколы, указанные в карточках. СИБИТ D600 240 мм: официальный сайт sibyt.ru, 24.09.2026. НДС и доставка не уточнены. Расчёт не является заключением о пригодности конструкции.</footer></main>
+<main><div class="summary" id="summary"></div><div id="globalWarning"></div><div class="grid" id="cards"></div><div class="toolbar"><button onclick="saveJSON()">Сохранить расчёт JSON</button><button onclick="document.getElementById('load').click()">Загрузить расчёт</button><input id="load" type="file" accept=".json" hidden><button onclick="csv()">Таблица для Excel (CSV)</button><button onclick="window.print()">Печать / PDF</button><button class="reset-compositions" onclick="resetCompositions()">↺ Сбросить составы к базе</button><button onclick="resetAll()">Сбросить всё</button><span id="saved" class="muted"></span></div></main>
 <dialog id="modal"><button class="close" onclick="document.getElementById('modal').close()">Закрыть</button><h2 id="mt"></h2><div id="mb"></div></dialog>
 <script>/*!
 
@@ -599,7 +599,7 @@ cost=function(i,id=S.groups[i].chosen){
 // В базе показываем ровно две экономические части: материалы и работы.
 // Внутренняя раскладка операций состава остаётся информационной и не удваивает стоимость.
 volumes=function(){
-  modal('Объёмы и базовые расценки',`<p>Исходник: типовой этаж 02, Водяная. Базовые ставки синхронизированы с МЕТАСЕБЕС 2.3. Площадь редактируется; стоимость материалов и работ базы зафиксирована как эталон для сравнения альтернатив.</p>
+  modal('Объёмы и базовые расценки',`<p></p>
   <div class="scroll"><table><tr><th>Группа</th><th>м²/этаж</th><th>Материалы, ₽/м²</th><th>Работы, ₽/м²</th><th>Итого, ₽/м²</th><th>Состав базы</th></tr>
   ${S.groups.map((g,i)=>{const b=cost(i,'base');return `<tr><td>${g.name}</td><td>${input(g.area,`update(v=>S.groups[${i}].area=v??0,this.value)`)}</td><td><b>${fmt(b.m)}</b></td><td><b>${fmt(b.w)}</b></td><td><b>${fmt(b.total)}</b></td><td>${esc(recipes[g.base].name)}<br><small>${esc(b.source||'МЕТАСЕБЕС')}</small></td></tr>`}).join('')}
   </table></div><div class="note"><b>Важно:</b> ставка работ МЕТАСЕБЕС уже является полной ставкой для соответствующей позиции. Штукатурка 20/20, перетирка и другие операции состава не прибавляются к базе второй раз. В альтернативных составах материалы и работы по-прежнему считаются отдельно.</div>`)
@@ -850,8 +850,38 @@ cost=function(i,id=S.groups[i].chosen){
 // Обновляем пояснение над карточками без изменения интерфейса.
 const metaSyncNote=document.createElement('div');
 metaSyncNote.className='note';metaSyncNote.style.marginBottom='16px';
-metaSyncNote.innerHTML='<b>Единая методика расчёта v3.5.</b> База и альтернативы теперь считаются одинаково: физический расход материалов × текущая цена + работы + отделка/перетирка + прочие затраты. Поэтому сравнение керамики, силикатного кирпича, ПГП и СППо выполняется на одной базе расчёта.';
+metaSyncNote.remove()
 const gw=document.getElementById('globalWarning');if(gw?.parentNode)gw.parentNode.insertBefore(metaSyncNote,gw);
+
+
+ // v3.6 — расценки из файла wall_calculator_rates (3).xlsx, 08.10.2026.
+ const RATES_20261008_M={
+ brick:21,sil:15,k120:147,k200:230,k250:215,magis:95,sb:125,sp:850,pgp:989.52,
+ mortar:4890,glue:16.2,plaster:192.66666666666669,putty:64,wool:3891.666666666667,
+ sibit240:6000,sibit250:6000
+ };
+ const RATES_20261008_W={
+ brick250:[1500,1000,0],brick120:[1400,1000,0],sil120:[922.479,1000,0],
+ sil250:[1551.939,1000,0],k120:[1491.199,1000,0],k200:[2370.199,1000,0],
+ k250:[2873.199,1000,0],magis:[1909.9,0,0],sb:[1508.079,500,0],
+ pgp:[1393.44,0,0],sp:[850,0,0],spf:[850,0,0],
+ compound:[2300,500,0],compoundw:[2400,500,0],
+ sibit240:[6293.199,500,0],sibit250:[6293.199,500,0]
+ };
+ const RATE_TAG_20261008='wall-rates-3-20261008';
+ for(const state of [defaultState,S]){
+   if(!state?.mats||!state?.configs)continue;
+   if(state.rateSync20261008===RATE_TAG_20261008)continue;
+   for(const [id,price] of Object.entries(RATES_20261008_M)){
+     if(state.mats[id])state.mats[id].price=price;
+   }
+   for(const [id,parts] of Object.entries(RATES_20261008_W)){
+     if(state.configs[id])Object.assign(state.configs[id],{work:parts[0],finishWork:parts[1],other:parts[2]});
+   }
+   state.rateSync20261008=RATE_TAG_20261008;
+ }
+ for(const [id,price] of Object.entries(RATES_20261008_M))if(matDefaults[id])matDefaults[id].price=price;
+ document.querySelector('header>small').textContent='ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР · ВЕРСИЯ 3.6';
 
 render();
 syncStickyHeaderHeight();
